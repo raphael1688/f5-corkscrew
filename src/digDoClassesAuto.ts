@@ -4,8 +4,13 @@
 import { BigipConfObj } from './models'
 import doClasses from './do_classes.json'
 import logger from './logger';
-import objectPath from 'object-path'
 
+/**
+ * Get a nested value from an object using an array of keys
+ */
+function deepGet(obj: any, path: string[]): any {
+    return path.reduce((acc, key) => acc?.[key], obj);
+}
 
 /**
  * dig DO config information like vlans/SelfIPs/system-settings/...
@@ -24,7 +29,7 @@ export async function digDoConfig (configTree: BigipConfObj): Promise<string[]> 
         const path = el.path.split('/').slice(2);
 
         // search tree for config
-        const val = objectPath.get(configTree, path)
+        const val = deepGet(configTree, path)
 
         if (val) {
             
