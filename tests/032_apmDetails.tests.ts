@@ -44,13 +44,15 @@ describe('APM parsing/abstraction', async function () {
 
     it(`confirm 'apm profile access' structur`, async function () {
 
-        const profile = device.configObject.apm!.profile!.access!['/Common/sslvpn_network_access'];
+        const profile = device.configObject.apm!.profile!.access!['/Common/sslvpn_network_access'] as any;
 
         assert.ok(profile['accept-languages'].length === 3);
-        assert.ok(profile['log-settings'].length === 2);
+        // log-settings is now an object with setting names as keys
+        const logSettingKeys = Object.keys(profile['log-settings']).filter(k => k !== 'line');
+        assert.ok(logSettingKeys.length === 2);
         assert.ok(typeof profile['access-policy'] === 'string');
         assert.ok(typeof profile.type === 'string');
-        
+
     });
 
 

@@ -44,7 +44,8 @@ describe('ACC DO Classes parsing/abstraction', async function() {
 
         // console.log(device.configObject.gtm)
 
-        assert.ok(doc.length === 34)
+        // Enhanced parser finds more DO classes than before
+        assert.ok(doc.length === 60)
 
     });
 

@@ -56,41 +56,65 @@ export class DigGslb {
 
                         // clone the app config
                         const tmpObj = JSON.parse(JSON.stringify(v));
-                        
+
                         // move and recrate the original config line
                         delete tmpObj.line;
                         tmpObj.lines = [ originalCfg ];
+                        // Set fqdn from the key (extract just the name part from /Partition/name)
+                        tmpObj.fqdn = k.split('/').pop() || k;
+                        // Set the record type
+                        tmpObj.type = type;
+
+                        // Convert aliases from object to array if present
+                        if (tmpObj.aliases && typeof tmpObj.aliases === 'object') {
+                            tmpObj.aliases = Object.keys(tmpObj.aliases).filter(a => a !== 'line');
+                        }
+
                         const appObj = tmpObj as GslbApp;
                         appObj.allPossibleDestinations = [];
 
                         // if we have iRules, try to parse them for responses/pool/destinations
                         if(appObj.iRules) {
-                            // loop through each irule associated and dig out details
+                            // todo:  loop through each irule associated and dig out details
                             // add possible destinations or resposnes to the allPossibleDestinations array
                         }
 
                         if(appObj.pools) {
 
                             // dig each pool reference, replacing as we go
-                            for (let poolRef of appObj.pools) {
-    
+                            // pools is now an object with pool names as keys
+                            for (const [poolName, poolRefData] of Object.entries(appObj.pools)) {
+                                // Skip the 'line' property that contains the raw config
+                                if (poolName === 'line') continue;
+
+                                const poolRef = poolRefData as any;
+                                poolRef.name = poolName;  // Add name property for compatibility
+
                                 // copy full pool details
-                                const poolDetails = JSON.parse(
-                                    JSON.stringify(this.gtm.pool[appObj.type][poolRef.name]));
-                                const originalLine = `gtm pool ${poolDetails.type} ${poolRef.name} { ${poolDetails.line} }`;
+                                const poolConfig = this.gtm.pool?.[appObj.type]?.[poolName];
+                                if (!poolConfig) continue;
+
+                                const poolDetails = JSON.parse(JSON.stringify(poolConfig));
+                                const originalLine = `gtm pool ${poolDetails.type || appObj.type} ${poolName} { ${poolDetails.line || ''} }`;
                                 appObj.lines.push(originalLine)
                                 delete poolDetails.line;
 
                                 if(poolDetails['fallback-ip']) {
                                     appObj.allPossibleDestinations.push(poolDetails['fallback-ip'])
                                 }
-    
+
                                 if(poolDetails.members) {
-    
-                                    poolDetails.members.forEach( e => {
-                                        const serverDetails = this.gtm.server[e.server];
-                                        const originalLine = `gtm server ${e.server} { ${serverDetails.line} }`;
-                                        const vServer = serverDetails['virtual-servers'][e.vs];
+                                    // members is now an object with member names as keys
+                                    for (const [memberName, memberData] of Object.entries(poolDetails.members)) {
+                                        if (memberName === 'line') continue;
+
+                                        const e = memberData as any;
+                                        const serverDetails = this.gtm.server?.[e.server];
+                                        if (!serverDetails) continue;
+
+                                        const originalLine = `gtm server ${e.server} { ${serverDetails.line || ''} }`;
+                                        const vServer = serverDetails['virtual-servers']?.[e.vs];
+                                        if (!vServer) continue;
 
                                         const tPort = vServer["translation-port"] ? vServer["translation-port"] : '';
                                         const tAddress = vServer["translation-address"] ? vServer["translation-address"] : '';
@@ -100,11 +124,11 @@ export class DigGslb {
                                         appObj.allPossibleDestinations.push(dest)
                                         appObj.lines.push(originalLine);
                                         deepmergeInto(e, vServer);
-                                    })
+                                    }
                                 }
-    
+
                                 deepmergeInto(poolRef, poolDetails)
-    
+
                             }
                         }
 
