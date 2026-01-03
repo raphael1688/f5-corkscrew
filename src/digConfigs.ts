@@ -35,23 +35,31 @@ export async function digVsConfig(vsName: string, vsConfig: BigipConfObj["ltm"][
     delete tmpObj.line;
     const originalCfg = `ltm virtual ${vsName} {${vsConfig.line}}`
     tmpObj.lines = [originalCfg];
+    // name and partition are already set by the parser from vsConfig
     const appObj = tmpObj as TmosApp;
 
     if (appObj.pool) {
         // dig pool details
         // just reassign the parsed pool details into the vs
         const body = configTree.ltm?.pool?.[vsConfig.pool];
-        appObj.lines.push(`ltm pool ${appObj.pool} {${body.line}}`);
+        if (body) {
+            appObj.lines.push(`ltm pool ${appObj.pool} {${body.line}}`);
+        }
         // raw copy the pool config
         appObj.pool = JSON.parse(JSON.stringify(configTree.ltm?.pool?.[vsConfig.pool]));
         delete appObj.pool.line;
 
         if (appObj.pool?.members) {
-
-            Object.keys(appObj.pool?.members).forEach(n => {
+            // Clean up line properties from members
+            delete (appObj.pool.members as any).line;
+            Object.keys(appObj.pool.members).forEach(n => {
+                const member = (appObj.pool.members as any)[n];
+                if (member && typeof member === 'object') {
+                    delete member.line;
+                }
                 // loop through all the pool members and get the node details
                 const name = n.split(':')[0];
-                const body = configTree.ltm.node[name]
+                const body = configTree.ltm?.node?.[name]
                 if (body) {
                     appObj.lines.push(`ltm node ${name} {${body.line}}`);
                 }
@@ -60,60 +68,85 @@ export async function digVsConfig(vsName: string, vsConfig: BigipConfObj["ltm"][
         }
 
         if (appObj?.pool?.monitor) {
+            // Handle both string (single monitor) and array (multiple monitors or min X of)
+            const monitors = Array.isArray(appObj.pool.monitor)
+                ? appObj.pool.monitor
+                : [appObj.pool.monitor];
 
-            appObj.pool.monitor.map(x => {
+            const processedMonitors: any[] = [];
+
+            monitors.forEach(x => {
+                if (typeof x !== 'string') {
+                    processedMonitors.push(x); // Already processed
+                    return;
+                }
 
                 const p = pathValueFromKey(configTree.ltm?.monitor, x)
                 if (p) {
-
-                    // clone the app config
+                    // clone the monitor config
                     const tmpObj = JSON.parse(JSON.stringify(p.value));
                     delete tmpObj.line;
+                    processedMonitors.push(tmpObj);
 
-                    // replace the monitor name with the full monitor config object in the app
-                    const idx = appObj.pool.monitor.indexOf(x)
-                    appObj.pool.monitor[idx] = tmpObj;
-
-                    appObj.lines.push(`ltm monitor ${p.path} ${p.key} { ${p.value.line} }`);
-
+                    appObj.lines.push(`ltm monitor ${p.path} ${p.key} { ${p.value?.line || ''} }`);
                 }
             })
-        }
 
-        appObj;
+            // Always store monitors as array for consistency
+            appObj.pool.monitor = processedMonitors;
+        }
     }
 
     if (appObj.profiles) {
         // dig profiles details
+        // profiles is now an object with profile names as keys
 
         // todo: dig profiles deeper => deep parse profiles/settings
 
-        appObj.profiles.forEach(name => {
+        // Get profile names from object keys, excluding 'line'
+        const profileNames = typeof appObj.profiles === 'object' && !Array.isArray(appObj.profiles)
+            ? Object.keys(appObj.profiles).filter(k => k !== 'line')
+            : (Array.isArray(appObj.profiles) ? appObj.profiles : []);
+
+        // Convert profiles to array format for TmosApp compatibility
+        appObj.profiles = profileNames as any;
+
+        profileNames.forEach(name => {
             // check the ltm profiles
             const x = pathValueFromKey(configTree.ltm?.profile, name);
             if (x) {
-                appObj.lines.push(`ltm profile ${x.path} ${x.key} {${x.value.line}}`);
+                appObj.lines.push(`ltm profile ${x.path} ${x.key} {${x.value?.line || ''}}`);
             }
 
             // check apm profiles
             const y = pathValueFromKey(configTree?.apm?.profile?.access, name);
             if (y) {
-                appObj.lines.push(`apm profile access ${y.path} ${y.key} {${y.value.line}}`);
+                appObj.lines.push(`apm profile access ${y.path} ${y.key} {${y.value?.line || ''}}`);
             }
 
             // check asm profile
             const z = pathValueFromKey(configTree?.asm?.policy, name);
             if (z) {
-                appObj.lines.push(`asm policy ${z.path} ${z.key} {${z.value.line}}`);
+                appObj.lines.push(`asm policy ${z.path} ${z.key} {${z.value?.line || ''}}`);
             }
         })
     }
 
     if (appObj.rules) {
         // dig iRule details
+        // rules is now an object with rule names as keys
 
         // todo: dig deeper like digRuleConfigs() in digConfigs.ts.331
-        appObj.rules.forEach(name => {
+
+        // Get rule names from object keys, excluding 'line'
+        const ruleNames = typeof appObj.rules === 'object' && !Array.isArray(appObj.rules)
+            ? Object.keys(appObj.rules).filter(k => k !== 'line')
+            : (Array.isArray(appObj.rules) ? appObj.rules : []);
+
+        // Convert rules to array format for TmosApp compatibility
+        appObj.rules = ruleNames as any;
+
+        ruleNames.forEach(name => {
 
             const x = pathValueFromKey(configTree.ltm?.rule, name)
             if (x) {
@@ -136,25 +169,35 @@ export async function digVsConfig(vsName: string, vsConfig: BigipConfObj["ltm"][
     }
 
     if (appObj.policies) {
-        // dig profiles details
-        appObj.policies.forEach(name => {
+        // dig policies details
+        // policies is now an object with policy names as keys
+
+        // Get policy names from object keys, excluding 'line'
+        const policyNames = typeof appObj.policies === 'object' && !Array.isArray(appObj.policies)
+            ? Object.keys(appObj.policies).filter(k => k !== 'line')
+            : (Array.isArray(appObj.policies) ? appObj.policies : []);
+
+        // Convert policies to array format for TmosApp compatibility
+        appObj.policies = policyNames as any;
+
+        policyNames.forEach(name => {
 
             const x = pathValueFromKey(configTree.ltm?.policy, name)
             if (x) {
-                appObj.lines.push(`ltm policy ${x.key} {${x.value.line}}`);
+                appObj.lines.push(`ltm policy ${x.key} {${x.value?.line || ''}}`);
 
                 // got through each policy and dig references (like pools)
-                const pools = poolsInPolicy(x.value.line)
+                const pools = poolsInPolicy(x.value?.line || '')
 
                 if (pools) {
                     pools.forEach(pool => {
-                        const cfg = configTree.ltm.pool[pool]
-                        // if we got here there should be a pool for the reference, 
+                        const cfg = configTree.ltm?.pool?.[pool]
+                        // if we got here there should be a pool for the reference,
                         // but just in case, we confirm with (if) statement
                         if (cfg) {
                             // push pool config to list
                             logger.debug(`policy [${x.key}], pool found [${cfg.name}]`);
-                            appObj.lines.push(`ltm pool ${cfg.name} {${cfg.line}}`)
+                            appObj.lines.push(`ltm pool ${cfg.name} {${cfg.line || ''}}`)
                         }
                     })
                 }
@@ -163,18 +206,18 @@ export async function digVsConfig(vsName: string, vsConfig: BigipConfObj["ltm"][
     }
 
     if (appObj.persist) {
-        // dig profiles details
+        // dig persistence details
         const x = pathValueFromKey(configTree.ltm?.persistence, appObj.persist)
         if (x) {
-            appObj.lines.push(`ltm persistence ${x.path} ${x.key} {${x.value.line}}`);
+            appObj.lines.push(`ltm persistence ${x.path} ${x.key} {${x.value?.line || ''}}`);
         }
     }
 
     if (appObj['fallback-persistence']) {
-        // dig profiles details
+        // dig fallback-persistence details
         const x = pathValueFromKey(configTree.ltm?.persistence, appObj['fallback-persistence'])
         if (x) {
-            appObj.lines.push(`ltm persistence ${x.path} ${x.key} {${x.value.line}}`);
+            appObj.lines.push(`ltm persistence ${x.path} ${x.key} {${x.value?.line || ''}}`);
         }
     }
 
@@ -198,16 +241,11 @@ export function uniqueList(x: string[]) {
  * get hostname from json config tree (if present)
  * @param configObject to search for hostname
  */
-export function getHostname(configObject: BigipConfObj): string {
+export function getHostname(configObject: BigipConfObj): string | undefined {
 
-    if (configObject?.sys?.['global-settings']) {
-
-        const hostname = configObject.sys["global-settings"].match(/hostname ([\w-.]+)\s/)
-
-        if (hostname && hostname[1]) {
-            // return just capture group
-            return hostname[1];
-        }
+    if (configObject?.sys?.['global-settings']?.hostname) {
+        const hostname = configObject.sys["global-settings"].hostname;
+        return hostname;
     }
 }
 

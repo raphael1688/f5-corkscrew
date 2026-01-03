@@ -23,6 +23,53 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ---
 
+## [1.6.0] - (12.31.2025)
+
+### Added
+
+- **Universal Parser**: Full-depth recursive TMOS parser ported from tmos-converter
+  - Handles any nesting depth automatically
+  - iRule-aware bracket matching (proper TCL handling)
+  - Edge cases: multiline strings, pseudo-arrays, empty objects, `monitor min X of`
+  - GTM topology preprocessing
+  - Preserves original config in `line` property
+
+- **String Input Method**: `loadParseString(configText, fileName?)`
+  - Parse TMOS config directly from string (no file required)
+  - Ideal for MCP servers, APIs, and programmatic workflows
+  - Emits same events as file-based parsing
+
+- **Discovery APIs** for efficient filtering:
+  - `listPartitions()`: Returns array of unique partition names
+  - `listApps(partition?)`: Returns array of virtual server paths
+  - `listAppsSummary(partition?)`: Returns lightweight app summaries with metadata
+
+- **Enhanced `apps()` Method** with filter options:
+  - `apps({ partition: 'Tenant1' })`: Filter by single partition
+  - `apps({ partitions: ['T1', 'T2'] })`: Filter by multiple partitions
+  - `apps({ apps: ['/Common/vs1', '/T1/vs2'] })`: Filter by specific app names
+  - Backward compatible with legacy single string argument
+
+- **New Types** in models.ts:
+  - `AppsFilterOptions`: Interface for apps() filter options
+  - `AppSummary`: Interface for lightweight app summaries
+
+- **New Tests**: ~41 new tests covering universal parser, string input, discovery APIs, and filter options
+
+- **Documentation**:
+  - PARSER_ANALYSIS.md: Technical analysis of parser implementation
+  - MERGE_STRATEGY.md: tmos-converter merge status and plans
+  - Updated CLAUDE.md with new API documentation
+  - Updated README.md with usage examples
+
+### Changed
+
+- Parsing now uses universal recursive parser instead of selective deep-parse
+- Config objects now have full depth (all nested properties parsed)
+- Improved iRule handling with bracket-aware parsing
+
+---
+
 ## [1.5.0] - (10.30.2025)
 
 ### Changed

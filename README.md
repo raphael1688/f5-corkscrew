@@ -10,7 +10,10 @@ A TypeScript-based tool for extracting and parsing F5 BIG-IP TMOS configurations
 ## Features
 
 - **Multi-format Support**: Parse .conf files, UCS archives, and qkview files
-- **Comprehensive Parsing**: Extracts LTM, GTM/DNS, APM, and ASM/WAF configurations
+- **String Input**: Parse config directly from string (no file needed) - great for MCP servers
+- **Comprehensive Parsing**: Universal recursive parser handles all TMOS object types
+- **Discovery APIs**: List partitions and apps for efficient filtering
+- **Filtered Extraction**: Extract apps by partition or specific names
 - **Structured Output**: JSON format for easy consumption by automation tools
 - **CLI Tool**: Simple command-line interface for quick analysis
 - **Library Usage**: Import as npm package for programmatic use
@@ -91,6 +94,58 @@ async function parseConfig() {
 }
 ```
 
+### Parse from String (NEW)
+
+```typescript
+import BigipConfig from 'f5-corkscrew';
+
+// Parse config from string (useful for MCP servers, APIs)
+const configText = `#TMSH-VERSION: 15.1.0
+ltm virtual /Common/app_vs {
+    destination /Common/10.0.0.1:443
+    pool /Common/app_pool
+}`;
+
+const bigip = new BigipConfig();
+await bigip.loadParseString(configText);
+
+// List partitions
+const partitions = bigip.listPartitions();  // ['Common']
+
+// List apps (optionally filter by partition)
+const apps = bigip.listApps();              // ['/Common/app_vs']
+const tenant1Apps = bigip.listApps('Tenant1');
+
+// Extract specific apps
+const appDetails = await bigip.apps({ partition: 'Tenant1' });
+const specificApps = await bigip.apps({ apps: ['/Common/app_vs'] });
+```
+
+### Discovery and Filtering API
+
+```typescript
+import BigipConfig from 'f5-corkscrew';
+
+const bigip = new BigipConfig();
+await bigip.loadParseAsync('/path/to/config.ucs');
+// Or: await bigip.loadParseString(configText);
+
+// Discovery - find what's in the config
+const partitions = bigip.listPartitions();      // ['Common', 'Tenant1', 'Tenant2']
+const allApps = bigip.listApps();               // All virtual servers
+const tenant1Apps = bigip.listApps('Tenant1');  // Filter by partition
+
+// Lightweight summaries (good for display)
+const summaries = bigip.listAppsSummary('Tenant1');
+// [{ name: 'app_vs', fullPath: '/Tenant1/app_vs', partition: 'Tenant1', 
+//    destination: '10.0.0.1:443', pool: '/Tenant1/app_pool' }]
+
+// Filtered extraction - only dig what you need
+const apps1 = await bigip.apps({ partition: 'Tenant1' });
+const apps2 = await bigip.apps({ partitions: ['Tenant1', 'Tenant2'] });
+const apps3 = await bigip.apps({ apps: ['/Common/vs1', '/Tenant1/vs2'] });
+```
+
 ### Working with Output
 
 **Using jq for JSON Processing:**
@@ -140,13 +195,15 @@ corkscrew --file config.ucs | jq '.output.stats'
 
 ## Supported TMOS Objects
 
+The universal parser handles **all** TMOS object types with full depth parsing. Key objects include:
+
 ### LTM (Local Traffic Manager)
-- Virtual Servers
-- Pools & Pool Members
+- Virtual Servers (with all nested properties)
+- Pools & Pool Members (including FQDN nodes)
 - Nodes
-- Monitors (HTTP, HTTPS, TCP, etc.)
-- Profiles (HTTP, TCP, Client-SSL, Server-SSL)
-- iRules
+- Monitors (HTTP, HTTPS, TCP, and all types)
+- Profiles (HTTP, TCP, Client-SSL, Server-SSL, and all types)
+- iRules (with proper TCL bracket handling)
 - Local Traffic Policies (LTPs)
 - Persistence Profiles
 - SNAT Pools
@@ -159,6 +216,7 @@ corkscrew --file config.ucs | jq '.output.stats'
 - Servers
 - Data Centers
 - Regions
+- Topology records
 
 ### APM (Access Policy Manager)
 - Access Profiles
@@ -171,25 +229,42 @@ corkscrew --file config.ucs | jq '.output.stats'
 - Bot Defense Profiles
 - DoS Profiles
 
+### System
+- Partitions and folders
+- Global settings
+- Provisioning
+- And more...
+
 ---
 
 ## Architecture
 
 ### Core Components
 
-- **BigipConfig Class** ([src/ltm.ts](src/ltm.ts)) - Main parsing orchestrator
+- **BigipConfig Class** ([src/ltm.ts](src/ltm.ts)) - Main parsing orchestrator and public API
+- **UniversalParse** ([src/universalParse.ts](src/universalParse.ts)) - Recursive TMOS parser (full-depth)
 - **UnPacker** ([src/unPackerStream.ts](src/unPackerStream.ts)) - Streams archives without full memory load
-- **DeepParse** ([src/deepParse.ts](src/deepParse.ts)) - Detailed object-level parsing
+- **DigConfigs** ([src/digConfigs.ts](src/digConfigs.ts)) - Application extraction (VS + dependencies)
 - **RegExTree** ([src/regex.ts](src/regex.ts)) - Version-specific regex patterns
 - **XmlStats** ([src/xmlStats.ts](src/xmlStats.ts)) - qkview statistics processing
 
 ### Data Flow
 
-1. **Input Processing**: Archives streamed, .conf files read directly
-2. **Parent Object Extraction**: Regex extracts top-level TMOS objects
-3. **Deep Parsing**: Detailed parsing of nested configurations
-4. **Tree Merging**: All objects merged into single JSON structure
-5. **Application Extraction**: Virtual servers + dependencies extracted
+1. **Input Processing**
+   - `loadParseAsync()`: Archives streamed via UnPacker, .conf files read directly
+   - `loadParseString()`: Config text parsed directly (no file needed)
+
+2. **Universal Parsing** ([universalParse.ts](src/universalParse.ts))
+   - Recursive bracket matching handles any nesting depth
+   - iRule-aware parsing (proper TCL bracket handling)
+   - Edge cases: multiline strings, pseudo-arrays, empty objects
+   - Outputs hierarchical JSON structure
+
+3. **Discovery & Extraction**
+   - `listPartitions()`: Quick scan for unique partitions
+   - `listApps()`: List virtual servers with optional partition filter
+   - `apps()`: Full extraction with filter options
+   - `explode()`: Complete extraction of all apps + metadata
 
 See [CLAUDE.md](CLAUDE.md) for detailed architecture documentation.
 
@@ -288,6 +363,14 @@ See [ENHANCEMENTS.md](ENHANCEMENTS.md) for improvement opportunities.
 ---
 
 ## Version History
+
+### v1.6.0 (2025-12-31) - Universal Parser & MCP APIs
+- **Universal Parser**: Replaced selective parsing with full-depth recursive parser from tmos-converter
+- **String Input**: New `loadParseString()` method for parsing config text directly
+- **Discovery APIs**: New `listPartitions()`, `listApps()`, `listAppsSummary()` methods
+- **Filtered Extraction**: Enhanced `apps()` with partition and app name filters
+- **MCP-Friendly**: APIs designed for AI agent workflows (drift detection, selective extraction)
+- See [PARSER_ANALYSIS.md](PARSER_ANALYSIS.md) for technical details
 
 ### v1.5.0 (2025-10-30)
 - Updated all dependencies to latest versions

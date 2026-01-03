@@ -2,6 +2,30 @@
 'use strict';
 
 /**
+ * Options for filtering apps in BigipConfig.apps()
+ */
+export interface AppsFilterOptions {
+    /** Filter apps by partition name */
+    partition?: string;
+    /** Filter apps by multiple partitions */
+    partitions?: string[];
+    /** Filter by specific app names (full paths) */
+    apps?: string[];
+}
+
+/**
+ * App summary for lightweight listing
+ */
+export interface AppSummary {
+    name: string;
+    fullPath: string;
+    partition: string;
+    folder?: string;
+    destination?: string;
+    pool?: string;
+}
+
+/**
  * object type that represends bigip.conf as multi-level json tree
  */
 export type BigipConfObj = {
@@ -146,7 +170,9 @@ export type BigipConfObj = {
         };
     };
     sys?: {
-        "global-settings"?: string;
+        "global-settings"?: {
+            hostname: string;
+        };
         application?: {
             service?: { [key: string]: string }
         },

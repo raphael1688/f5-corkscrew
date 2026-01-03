@@ -49,7 +49,8 @@ describe('WAF/ASM parsing/abstraction', async function () {
         const basicPolicy1 = asmObj.policy['/Common/basic_policy_1']
         assert.ok(typeof basicPolicy1.line === 'string');
         assert.ok(typeof basicPolicy1.description === 'string');
-        assert.ok(typeof basicPolicy1.status === 'string');
+        // New parser uses 'active' instead of 'status'
+        assert.ok(typeof basicPolicy1.active === 'string');
         assert.ok(typeof basicPolicy1['blocking-mode'] === 'string');
         assert.ok(typeof basicPolicy1['policy-builder'] === 'string');
         assert.ok(typeof basicPolicy1['policy-template'] === 'string');
