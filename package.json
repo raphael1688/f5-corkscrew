@@ -2,7 +2,7 @@
   "name": "f5-corkscrew",
   "description": "extracting tmos config",
   "author": "F5DevCentral",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "license": "Apache-2.0",
   "homepage": "https://github.com/f5devcentral/f5-corkscrew#readme",
   "main": "dist/index.js",
@@ -52,11 +52,8 @@
   },
   "devDependencies": {
     "@types/assert": "^1.5.11",
-    "@types/balanced-match": "^3.0.2",
-    "@types/decompress": "^4.2.7",
     "@types/mocha": "^10.0.10",
     "@types/node": "^22.18.13",
-    "@types/object-path": "^0.11.4",
     "@types/tar": "^6.1.13",
     "@types/tar-stream": "^3.1.4",
     "@types/yargs": "^17.0.34",
@@ -71,16 +68,11 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "balanced-match": "^3.0.1",
-    "decompress": "^4.2.1",
     "deepmerge-ts": "^7.1.5",
-    "f5-conx-core": "^1.2.0",
     "fast-xml-parser": "^5.3.0",
     "glob": "^13.0.0",
-    "object-path": "^0.11.8",
     "tar-stream": "^3.1.7",
     "uuid": "^13.0.0",
-    "xregexp": "^5.1.2",
     "yargs": "^18.0.0"
   }
 }

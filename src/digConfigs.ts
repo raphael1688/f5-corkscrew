@@ -6,7 +6,6 @@ import { BigipConfObj, TmosApp } from './models'
 import { RegExTree } from './regex';
 import { pathValueFromKey } from './objects';
 import { poolsInPolicy } from './pools';
-import { keyValuePairs } from './deepParse';
 
 
 /**
@@ -224,17 +223,6 @@ export async function digVsConfig(vsName: string, vsConfig: BigipConfObj["ltm"][
     return appObj;
 
 }
-
-
-/**
- * removes duplicates
- * @param x list of strings
- * @return list of unique strings
- */
-export function uniqueList(x: string[]) {
-    return Array.from(new Set(x));
-}
-
 
 
 /**

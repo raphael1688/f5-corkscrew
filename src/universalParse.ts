@@ -512,47 +512,4 @@ export function parseConfig(configText: string): Record<string, any> {
     }
 }
 
-/**
- * Parse multiple config files and merge results
- */
-export function parseConfigs(files: Record<string, string>): Record<string, any> {
-    let merged: Record<string, any> = {};
-
-    for (const [fileName, content] of Object.entries(files)) {
-        // Skip certs, keys, license files
-        if (fileName.includes('Common_d') || 
-            fileName.includes('bigip_script.conf') || 
-            fileName.includes('.license')) {
-            continue;
-        }
-
-        logger.debug(`Parsing ${fileName}`);
-        const parsed = parseConfig(content);
-        merged = deepMerge(merged, parsed);
-    }
-
-    return merged;
-}
-
-/**
- * Deep merge two objects
- */
-function deepMerge(target: Record<string, any>, source: Record<string, any>): Record<string, any> {
-    const result = { ...target };
-    
-    for (const key of Object.keys(source)) {
-        if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-            if (result[key] && typeof result[key] === 'object' && !Array.isArray(result[key])) {
-                result[key] = deepMerge(result[key], source[key]);
-            } else {
-                result[key] = { ...source[key] };
-            }
-        } else {
-            result[key] = source[key];
-        }
-    }
-    
-    return result;
-}
-
 export default parseConfig;

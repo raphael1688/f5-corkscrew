@@ -19,9 +19,7 @@
 
 import BigipConfig from './ltm'
 import yargs from 'yargs';
-import Logger from 'f5-conx-core/dist/logger';
-
-const logger = new Logger('F5_CORKSCREW_LOG_LEVEL');
+import logger from './logger';
 
 
 export const cli = yargs(process.argv.slice(2)).options({

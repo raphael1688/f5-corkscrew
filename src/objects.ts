@@ -10,41 +10,6 @@ export type RetObj = {
 }
 
 
-/**
- * builds multi-level nested objects with data
- * https://stackoverflow.com/questions/5484673/javascript-how-to-dynamically-create-nested-objects-using-object-names-given-by
- * @param fields array of nested object params
- * @param value value of the inner most object param value
- */
-export function nestedObjValue (fields: string[], value: string): unknown {
-    const reducer = (acc, item, index, arr) => ({ [item]: index + 1 < arr.length ? acc : value });
-    return fields.reduceRight(reducer, {});
-}
-
-
-
-
-
-
-/**
- * this will overwrite existing data
- * @param obj 
- * @param path 
- * @param value 
- */
-export function setNestedKey(obj: unknown, path: string[], value: unknown): unknown {
-
-    /**
-     * https://stackoverflow.com/questions/18936915/dynamically-set-property-of-nested-object
-     */
-    if (path.length === 1) {
-        obj[path[0]] = value
-        return
-    }
-    return setNestedKey(obj[path[0]], path.slice(1), value)
-}
-
-
 
 
 /**

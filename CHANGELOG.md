@@ -23,6 +23,31 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ---
 
+## [1.6.1] - (01.03.2026)
+
+### Changed
+
+- **Dependency Cleanup**: Removed 8 unused packages
+  - `balanced-match`, `@types/balanced-match` (replaced by custom bracket matching)
+  - `decompress`, `@types/decompress` (replaced by tar-stream)
+  - `xregexp` (only used by dead code)
+  - `object-path`, `@types/object-path` (replaced with inline `deepGet`)
+  - `f5-conx-core` (replaced with local logger)
+
+- **Dead Code Removal**: Removed ~900 lines of unused code
+  - `src/deepParse.ts` deleted entirely (~750 lines)
+  - `src/tmos2json.ts` deleted (bracket matching functions unused after universal parser)
+  - Dead functions: `uniqueList`, `nestedObjValue`, `setNestedKey`, `parseConfigs`
+  - Orphan test file `010_json_objects.test.ts` (never ran due to naming)
+
+- **Local Logger Enhancement**: Simplified `src/logger.ts` with console toggle and journal access for CLI
+
+### Fixed
+
+- Removed broken imports in test files
+
+---
+
 ## [1.6.0] - (12.31.2025)
 
 ### Added
